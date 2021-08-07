@@ -6,9 +6,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ayush723/oauth-go_bookstore/oauth/errors"
-	"github.com/go-resty/resty/v2"
+	"github.com/mercadolibre/golang-restclient/rest"
 )
 
 
@@ -24,7 +25,10 @@ const(
 )
 
 var(
-	oauthRestClient = resty.New()
+	oauthRestClient = rest.RequestBuilder{
+		BaseURL: "http://localhost:8080",
+		Timeout: 200 * time.Millisecond,
+	}
 )
 
 type accessToken struct{
@@ -100,18 +104,14 @@ func cleanRequest(request *http.Request){
 }
 
 func getAccessToken(accessTokenId string) (*accessToken, *errors.RestErr){
-	response, err := oauthRestClient.R().Get(fmt.Sprintf("https://localhost:8080/oauth/access_token/%s",accessTokenId))
-
-	if err != nil{
-		return nil, errors.NewInternalServerError("error in the api")
-	}
+	response := oauthRestClient.Get(fmt.Sprintf("/oauth/access_token/%s", accessTokenId))
 	if response == nil || response.Request == nil {
 		return nil, errors.NewInternalServerError("invalid restclient response when trying to get access token")
 
 	}
-	if response.StatusCode() > 299{
+	if response.StatusCode > 299{
 		var restErr errors.RestErr
-		err := json.Unmarshal(response.Body(), &restErr)
+		err := json.Unmarshal(response.Bytes(), &restErr)
 		if err != nil{
 			return nil, errors.NewInternalServerError("invalid error interface when trying to get access token")
 		}
@@ -120,7 +120,7 @@ func getAccessToken(accessTokenId string) (*accessToken, *errors.RestErr){
 	}
 	// if response is ok, we unmarshal the response body
 	var at accessToken
-	if err := json.Unmarshal(response.Body(), &at); err != nil{
+	if err := json.Unmarshal(response.Bytes(), &at); err != nil{
 		return nil, errors.NewInternalServerError("error when trying to unmarshal access token response")
 	}
 	return &at, nil
