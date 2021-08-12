@@ -46,7 +46,7 @@ func IsPublic(request *http.Request) bool{
 	return request.Header.Get(headerXPublic) == "true"
 
 }
-
+//GetCallerId returns caller id from header
 func GetCallerId(request *http.Request)int64{
 	if request == nil{
 		return 0
@@ -75,13 +75,17 @@ func AuthenticateRequest(request *http.Request) *errors.RestErr{
 	if request == nil{
 		return  nil//means it is a public request
 		}
+		//clears headers if present
 		cleanRequest(request)
 
+		//gets access token id
 		accessTokenId:= strings.TrimSpace(request.URL.Query().Get(paramAccessToken))
 		//http://api.bookstore.com/resource?access_token=abc123
 		if accessTokenId == ""{
 			return nil
 		}
+
+		//hits the oauth api/access_token/:access_token_id
 		at, err := getAccessToken(accessTokenId)
 		if err != nil{
 			if err.Status == http.StatusNotFound{
@@ -89,6 +93,7 @@ func AuthenticateRequest(request *http.Request) *errors.RestErr{
 			}
 			return err
 		}
+		//adds the following headers
 		request.Header.Add(headerXClientId, fmt.Sprintf("%v",at.ClientId))
 		request.Header.Add(headerXCallerId, fmt.Sprintf("%v",at.UserId))
 
